@@ -1,0 +1,26 @@
+schema {
+  query: Query
+  mutation: Calc
+}
+
+type Calc {
+  sum(x: Int, y: Int): Int
+}
+
+scalar Date
+
+type Query {
+  echo(message: String): String
+  user: User
+  getDelivery: Delivery
+}
+
+type User {
+    name: String
+    role_id: Int
+}
+
+type Delivery {
+    user: User
+    created_at: Date
+}
