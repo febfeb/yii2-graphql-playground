@@ -39,7 +39,7 @@ class QueryType extends ObjectType
             $reflect = new ReflectionClass($class);
             $className = $reflect->getShortName();
             $baseName = lcfirst($className);
-            NodeLogger::sendLog($baseName);
+            //NodeLogger::sendLog($baseName);
             $functionList = [];
             foreach ($functions as $function) {
                 if (substr($function, 0, strlen("action")) == "action" && $function != "action") {
@@ -49,18 +49,10 @@ class QueryType extends ObjectType
 
             $fields[$baseName] = [
                 'type' => self::get($class),
-                'description' => 'Returns user by id (in range of 1-5)',
-//                "name" => $reflect->getShortName(),
-//                "description" => "Controller biasa",
-//                "fields" => function() {
-//                    return [
-//                        "id" => Type::id()
-//                    ];
-//                }
             ];
         }
 
-        NodeLogger::sendLog("OKE");
+//        NodeLogger::sendLog("OKE");
 
         $config = [
             'name' => 'Query',
@@ -112,8 +104,12 @@ class QueryType extends ObjectType
                 NodeLogger::sendLog("==START==");
                 NodeLogger::sendLog($rootValue);
                 NodeLogger::sendLog($args);
-                NodeLogger::sendLog($info->fieldName);
+                NodeLogger::sendLog("parentType:" . $info->parentType->name);
+                foreach (self::$types as $key => $val) {
+                    NodeLogger::sendLog("KEY:" . $key . " => " . $val->name);
+                }
                 NodeLogger::sendLog("==END===");
+
 
                 return new UserController("user", Yii::$app->controller->module);
 
@@ -121,7 +117,7 @@ class QueryType extends ObjectType
                 if (method_exists($rootValue, $method)) {
                     return $rootValue->{$method}($args, $context, $info);
                 } else {
-                    throw new Exception("Method ".$method." not exist", 500);
+                    throw new Exception("Method " . $method . " not exist", 500);
                 }
 
                 return $this->{$info->fieldName}($rootValue, $args, $context, $info);
@@ -131,6 +127,7 @@ class QueryType extends ObjectType
     }
 
     private static $types = [];
+    private static $classNames = [];
 
     public static function get($classname)
     {
@@ -139,10 +136,15 @@ class QueryType extends ObjectType
 
     protected static function byClassName($classname)
     {
+
         $parts = explode("\\", $classname);
         $cacheName = strtolower(preg_replace('~Type$~', '', $parts[count($parts) - 1]));
 
         $type = null;
+
+        if (!isset(self::$classNames[$cacheName])) {
+            self::$classNames[$cacheName] = $classname;
+        }
 
         if (!isset(self::$types[$cacheName])) {
             if (class_exists($classname)) {
@@ -170,19 +172,24 @@ class QueryType extends ObjectType
         }
 
         $method = lcfirst($shortName);
-        if(method_exists(get_called_class(), $method)) {
+        if (method_exists(get_called_class(), $method)) {
             $type = self::{$method}();
         }
 
-        if(!$type) {
+        if (!$type) {
             throw new Exception("Unknown graphql type: " . $shortName);
         }
         return $type;
     }
 
+    public static function getClassByName($name){
+        $name = strtolower($name);
+        return self::$classNames[$name];
+    }
+
     private static function buildType($className)
     {
-        NodeLogger::sendLog("ClassName: ".$className);
+        NodeLogger::sendLog("ClassName: " . $className);
         $reflect = new ReflectionClass($className);
         $shortClassName = $reflect->getShortName();
 
@@ -194,23 +201,24 @@ class QueryType extends ObjectType
             $fields = $className::graphqlProps();
         }
 
-        NodeLogger::sendLog("Short: ".$shortClassName);
+        //NodeLogger::sendLog("Short: " . $shortClassName);
 
         $config = [
             'name' => $shortClassName,
             'fields' => $fields,
             'resolveField' => function ($rootValue, $args, $context, ResolveInfo $info) {
-                NodeLogger::sendLog("==START/ACTION==");
-//                NodeLogger::sendLog($rootValue);
-                NodeLogger::sendLog($args);
-                NodeLogger::sendLog($info->fieldName);
-                NodeLogger::sendLog("==END/ACTION===");
-//                return "JOSSSSSSSS";
+//                NodeLogger::sendLog("==START/ACTION==");
+//                NodeLogger::sendLog($args);
+//                NodeLogger::sendLog("Parent: ".$info->parentType->name);
+                $parentClassName = self::getClassByName($info->parentType->name);
+//                NodeLogger::sendLog("==END/ACTION===");
 
                 //TODO: Ubah ke mode
                 $method = 'action' . ucfirst($info->fieldName);
                 if (method_exists($rootValue, $method)) {
-                    return $rootValue->{$method}($args, $context, $info);
+                    $obj = new $parentClassName();
+                    return call_user_func_array([$obj, $method], $args);
+//                    return $rootValue->{$method}($args, $context, $info);
                 } else {
                     $getMethod = $info->fieldName;
                     return $rootValue->$getMethod;

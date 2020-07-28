@@ -1,28 +1,42 @@
 <?php
+
 namespace app\controllers\graphql;
 
+use app\components\Controller;
+use app\components\NodeLogger;
 use app\components\QueryType;
 use app\models\User;
 use GraphQL\Type\Definition\Type;
-use yii\web\Controller;
 
 class UserController extends Controller
 {
 
-    public function graphqlProps(){
+    public function graphqlProps()
+    {
         return [
-//            "id" => Type::id(),
             "index" => Type::string(),
-            "user" => QueryType::get(User::className())
-//            "users" => [User::className()]
+            "user" => [
+                "type" => QueryType::get(User::className()),
+                "args" => [
+                    "id" => [
+                        "type" => QueryType::nonNull(Type::int()),
+                    ],
+                    "limit" => [
+                        "type" => Type::int(),
+                    ]
+                ]
+            ]
         ];
     }
 
-    public function actionIndex($args = null, $context = null, $info = null){
-        return "JOSS MBAH";
+    public function actionIndex()
+    {
+        return "Selamat Datang di GraphQL Yii2";
     }
 
-    public function actionUser($args = null, $context = null, $info = null){
-        return User::find()->one();
+    public function actionUser($id, $limit = null)
+    {
+        NodeLogger::sendLog("LIMIT : ".$limit);
+        return User::find()->where(["id" => $id])->one();
     }
 }
